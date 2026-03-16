@@ -22,5 +22,9 @@ int main() {
             {"Davies",      20, 100}
     };
 
+    for(int i=1; i < CANT_JUGADORES; i++){
+        assert(jugadoresOrdenadosPorCantDePartidos(equipo[i].partidosJugados)==);
+    }
+
     return 0;
 }
