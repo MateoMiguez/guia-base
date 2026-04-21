@@ -8,5 +8,8 @@
 int main() {
     imprimir_titulo("Tests para palíndromos");
 
+    assert(esPalindromo("neuquen")==true);
+    assert(esPalindromo("palindromo")== false);
+
     return 0;
 }
