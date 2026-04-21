@@ -81,7 +81,17 @@ bool esDivisiblePor7(int n) {
     return esDivisiblePor7((n / 10) - ((n % 10)*2));
 }
 
-void explosionRecursiva(int n, int b, int *result, int *size) {
+void explosionRecursiva(int n, int b, int *result, int *cant) {
+    if(n <= b){
+        result[(*cant)] = n;
+        (*cant)++;
+        return;
+    }else{
+        int n1 = n / 2;
+        int n2 = n - n1;
+        explosionRecursiva(n1, b, result, cant);
+        explosionRecursiva(n2, b, result, cant);
+    }
 }
 
 int *explosion(int n, int b, int *cantidad) {
@@ -135,6 +145,7 @@ char *chinos(unsigned int nivel) {
 }
 
 char *agregarSeparadoresRecursivo(char *numero, int indice, int contador) {
+
 }
 
 char *agregarSeparadorMiles(char *numero) {

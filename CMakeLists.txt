@@ -20,3 +20,9 @@ add_subdirectory(practicas/7-tabla-hash)
 add_subdirectory(practicas/8-conjuntos)
 
 enable_testing()
+
+file(GLOB DATA_FILES "archivos/*.txt")
+foreach (DATA_FILE ${DATA_FILES})
+    get_filename_component(FILE_NAME ${DATA_FILE} NAME)
+    configure_file(${DATA_FILE} archivos/${FILE_NAME} COPYONLY)
+endforeach ()

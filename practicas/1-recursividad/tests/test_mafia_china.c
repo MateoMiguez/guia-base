@@ -9,6 +9,8 @@
 
 int main() {
     imprimir_titulo("Tests para la mafia china");
+    assert(strcmp(chinos(1), "(-.-)") == 0);
+    assert(strcmp(chinos(2), "(-.(-.-).-)" ) == 0);
 
     char *r=  chinos(4);
 
