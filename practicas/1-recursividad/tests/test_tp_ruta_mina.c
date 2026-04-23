@@ -48,15 +48,13 @@ int main() {
     imprimir_titulo("TP Integrador - Ruta de Rescate en Mina");
     
     resolver_ruta_mina("../../../practicas/1-recursividad/prueba1_entrada.txt", "prueba1_salida.txt");
-    
     assert(file_eq("prueba1_salida.txt", "../../../practicas/1-recursividad/prueba1_salidaesperada.txt"));
-    
     printf("Test 1 pasado: prueba1_salida coincide con prueba1_salidaesperada\n");
-
+    printf("-----------------------------------------------------------------------------\n");
     resolver_ruta_mina("../../../practicas/1-recursividad/prueba2_entrada.txt", "prueba2_salida.txt");
-    
-    assert(file_eq("prueba2_salida.txt", "../../../practicas/1-recursividad/prueba2_salidaesperada.txt"));
-    
+    assert(file_eq("prueba2_salida.txt", "../../../practicas/1-recursividad/prueba2_salidaesperada.txt")); 
     printf("Test 2 pasado: prueba2_salida coincide con prueba2_salidaesperada\n");
+    printf("-----------------------------------------------------------------------------\n");
+    printf("\t\tTodos los tests pasaron exitosamente :)\n");
     return 0;
 }
