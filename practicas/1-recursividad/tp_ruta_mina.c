@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <math.h>
+#include "recursividad.h"
 
 /*
  Implementar un programa que resuelva un mapa en grilla, 
@@ -102,37 +103,49 @@ struct Solucion {
     int largo_camino;
 };
 
-// 1) función para leer el mapa desde un archivo y guardarlo en el struct Mapa
+// declaramos todas las funciones
+void leer_mapa(const char *nombre_archivo, struct Mapa *mapa);
+
+void resolver_ruta(struct Mapa *mapa, struct Solucion *solucion);
+
+void resolver_ruta_rec(struct Mapa *mapa, struct Solucion *mejor_solucion, 
+                       struct Posicion actual, int puntaje_actual, int pasos_actuales, 
+                       char *movimientos_actuales, struct Posicion *camino_actual, 
+                       int largo_camino_actual, bool **visitados);
+
+void escribir_resultado(const char *nombre_archivo, struct Solucion *solucion);
+
+void liberar_memoria(struct Mapa *mapa, struct Solucion *solucion);
+
+// implementación de las funciones
+
 void leer_mapa(const char *nombre_archivo, struct Mapa *mapa){
     FILE *entrada;
-    char linea[100]; //buffer para ir guardando cada línea que leamos
+    char linea[100];
     entrada = fopen(nombre_archivo, "r");
     if (entrada == NULL) {
         printf("no se pudo abrir el archivo\n");
-        exit(1);
+        return;
     } 
     else {
         printf("Archivo abierto con exito\n"); // BORRAR printf de prueba
         printf("--------------------------------------------------\n");
 
-        // 2) leer el mapa linea por linea usando fgets() y guardarlo en el struct Mapa
         fgets(linea, sizeof(linea), entrada); // leer la primera línea con las dimensiones
-        
-        sscanf(linea, "%d %d", &mapa->filas, &mapa->columnas); // extraer filas y columnas
+        sscanf(linea, "%d %d", &mapa->filas, &mapa->columnas);
 
-        // 3) reservar memoria para las celdas del mapa
+        // reservar memoria para las celdas del mapa
         mapa->celdas = (char **)malloc(mapa->filas * sizeof(char *));
         for (int i=0; i < mapa->filas; i++) {
             mapa->celdas[i] = (char *)malloc(mapa->columnas * sizeof(char));
         }
-        // 4) leer cada linea del mapa y guardar en el struct Mapa, identificando la posición de inicio y salida
+
         for (int i=0; i < mapa->filas; i++) {
-            fgets(linea, sizeof(linea), entrada); // leer una linea del mapa
+            fgets(linea, sizeof(linea), entrada);
             
             for (int j=0; j < mapa->columnas; j++) {
-                mapa->celdas[i][j] = linea[j]; // guardar el caracter en la estructura
+                mapa->celdas[i][j] = linea[j]; // guardar el caracter en la struct
 
-                // identificar la posición de inicio (I) y salida (S)
                 if (linea[j] == 'I') {
                     mapa->inicio.fila = i;
                     mapa->inicio.columna = j;
@@ -142,17 +155,138 @@ void leer_mapa(const char *nombre_archivo, struct Mapa *mapa){
                 }
             }
         }
-        // 5) cerramos el archivo para liberar memoria
         fclose(entrada);
     }
 }
 
-// 2) función para resolver el problema de forma recursiva
-void resolver_ruta(){
-
+void resolver_ruta_rec(struct Mapa *mapa, struct Solucion *mejor_solucion, 
+                       struct Posicion actual, int puntaje_actual, int pasos_actuales, 
+                       char *movimientos_actuales, struct Posicion *camino_actual, 
+                       int largo_camino_actual, bool **visitados) {
+    
+    // caso base: se encontró la salida
+    if (actual.fila == mapa->salida.fila && actual.columna == mapa->salida.columna) {
+        // guardar la posicion de salida en el camino
+        camino_actual[largo_camino_actual] = actual;
+        largo_camino_actual++;
+        
+        // verificar si esta es la mejor solucion
+        if (!mejor_solucion->encontrada || puntaje_actual > mejor_solucion->puntaje || (puntaje_actual == mejor_solucion->puntaje && pasos_actuales < mejor_solucion->pasos) ||
+            (puntaje_actual == mejor_solucion->puntaje && pasos_actuales == mejor_solucion->pasos && 
+             strcmp(movimientos_actuales, mejor_solucion->movimientos) < 0)) {
+            
+            mejor_solucion->encontrada = true;
+            mejor_solucion->puntaje = puntaje_actual;
+            mejor_solucion->pasos = pasos_actuales;
+            
+            free(mejor_solucion->movimientos);
+            mejor_solucion->movimientos = malloc(strlen(movimientos_actuales) + 1);
+            strcpy(mejor_solucion->movimientos, movimientos_actuales);
+            
+            free(mejor_solucion->camino);
+            mejor_solucion->camino = malloc(largo_camino_actual * sizeof(struct Posicion));
+            for (int i = 0; i < largo_camino_actual; i++) {
+                mejor_solucion->camino[i] = camino_actual[i];
+            }
+            mejor_solucion->largo_camino = largo_camino_actual;
+        }
+        return;
+    }
+    
+    // marcar posicion actual como visitada
+    visitados[actual.fila][actual.columna] = true;
+    
+    // vector de direcciones en orden lexicografico: A(Arriba), B(Abajo), D(Derecha), I(Izquierda)
+    int direcciones[4][2] = {{-1, 0}, {1, 0}, {0, 1}, {0, -1}};
+    char movimientos_dir[4] = {'A', 'B', 'D', 'I'};
+    
+    // avanzar en las 4 direcciones en orden
+    for (int dir = 0; dir < 4; dir++) {
+        struct Posicion siguiente;
+        siguiente.fila = actual.fila + direcciones[dir][0];
+        siguiente.columna = actual.columna + direcciones[dir][1];
+        
+        // verificar limites del la mina
+        if (siguiente.fila < 0 || siguiente.fila >= mapa->filas || 
+            siguiente.columna < 0 || siguiente.columna >= mapa->columnas) {
+            continue;
+        }
+        
+        // verificar si no esta visitado y no es una celda bloqueada
+        if (visitados[siguiente.fila][siguiente.columna] || 
+            mapa->celdas[siguiente.fila][siguiente.columna] == '#') {
+            continue;
+        }
+        
+        // calcular puntos de la siguiente celda
+        int puntos_siguiente = 0;
+        char celda = mapa->celdas[siguiente.fila][siguiente.columna];
+        if (celda >= '0' && celda <= '9') {
+            puntos_siguiente = celda - '0';
+        }
+        
+        // crear el nuevo string de movimientos
+        int len_movimientos = strlen(movimientos_actuales);
+        char *nuevos_movimientos = malloc(len_movimientos + 2);
+        strcpy(nuevos_movimientos, movimientos_actuales);
+        nuevos_movimientos[len_movimientos] = movimientos_dir[dir];
+        nuevos_movimientos[len_movimientos + 1] = '\0';
+        
+        // guardar posición en el camino
+        camino_actual[largo_camino_actual] = actual;
+        
+        // llamada recursiva
+        resolver_ruta_rec(mapa, mejor_solucion, siguiente, 
+                         puntaje_actual + puntos_siguiente, 
+                         pasos_actuales + 1, 
+                         nuevos_movimientos, camino_actual, 
+                         largo_camino_actual + 1, visitados);
+        
+        free(nuevos_movimientos);
+    }
+    
+    // Backtracking: desmarcar como visitado
+    visitados[actual.fila][actual.columna] = false;
+    return;
 }
 
-// 3) función para crear el archivo de salida con el resultado
+void resolver_ruta(struct Mapa *mapa, struct Solucion *solucion){
+    // Inicializar solución
+    solucion->encontrada = false;
+    solucion->puntaje = 0;
+    solucion->pasos = 0;
+    solucion->movimientos = malloc(1);
+    strcpy(solucion->movimientos, "");
+    solucion->camino = malloc(mapa->filas * mapa->columnas * sizeof(struct Posicion));
+    solucion->largo_camino = 0;
+    
+    // Crear matriz de visitados
+    bool **visitados = malloc(mapa->filas * sizeof(bool *));
+    for (int i = 0; i < mapa->filas; i++) {
+        visitados[i] = malloc(mapa->columnas * sizeof(bool));
+        for (int j = 0; j < mapa->columnas; j++) {
+            visitados[i][j] = false;
+        }
+    }
+    
+    // Buffer para guardar el camino durante la búsqueda
+    struct Posicion *camino_buffer = malloc(mapa->filas * mapa->columnas * sizeof(struct Posicion));
+    
+    // Iniciar búsqueda desde la posición inicial
+    char *mov_inicial = malloc(1);
+    strcpy(mov_inicial, "");
+    
+    resolver_ruta_rec(mapa, solucion, mapa->inicio, 0, 0, mov_inicial, camino_buffer, 0, visitados);
+    
+    // Liberar memoria temporal
+    free(mov_inicial);
+    free(camino_buffer);
+    for (int i = 0; i < mapa->filas; i++) {
+        free(visitados[i]);
+    }
+    free(visitados);
+}
+
 void escribir_resultado(const char *nombre_archivo, struct Solucion *solucion){
     FILE *salida;
     salida = fopen(nombre_archivo, "w");
@@ -177,90 +311,26 @@ void escribir_resultado(const char *nombre_archivo, struct Solucion *solucion){
     } else {
         fprintf(salida, "RESULTADO: SIN_CAMINO\n");
     }
-
     fclose(salida); 
 }
 
-// 4) función para liberar la memoria asignada al mapa y a la solución
 void liberar_memoria(struct Mapa *mapa, struct Solucion *solucion){
     for (int i=0; i < mapa->filas; i++) {
         free(mapa->celdas[i]);
     }
     free(mapa->celdas);
-    
-    if (solucion->movimientos) {
-        free(solucion->movimientos);
-    }
-    if (solucion->camino) {
-        free(solucion->camino);
-    }
+    free(solucion->movimientos);
+    free(solucion->camino);
 }
 
+void resolver_ruta_mina(const char *nombre_archivo_entrada, const char *nombre_archivo_salida) {
+    struct Mapa mapa;
+    struct Solucion solucion;
+    
+    leer_mapa(nombre_archivo_entrada, &mapa);
+    resolver_ruta(&mapa, &solucion);
+    escribir_resultado(nombre_archivo_salida, &solucion);
+    liberar_memoria(&mapa, &solucion);
 
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* void recorrido_recursivo(struct Mapa *mapa, struct Solucion *mejor_solucion, struct Posicion actual, int puntaje_actual, int pasos_actuales, char *movimientos_actuales, bool **visitados){
-        if(actual.fila == mapa->salida.fila && actual.columna == mapa->salida.columna){
-            // Caso base: llegamos a la salida
-            // Actualizamos mejor_solucion si es necesario
-            if (!mejor_solucion->encontrada || puntaje_actual > mejor_solucion->puntaje) {
-                mejor_solucion->encontrada = true;
-                mejor_solucion->puntaje = puntaje_actual;
-                mejor_solucion->pasos = pasos_actuales;
-                mejor_solucion->movimientos = strdup(movimientos_actuales);
-                // Copiar el camino actual a mejor_solucion->camino
-            } else if (puntaje_actual == mejor_solucion->puntaje) {
-                if (pasos_actuales < mejor_solucion->pasos) {
-                    mejor_solucion->pasos = pasos_actuales;
-                    mejor_solucion->movimientos = strdup(movimientos_actuales);
-                    // Copiar el camino actual a mejor_solucion->camino
-                } 
-                else if (pasos_actuales == mejor_solucion->pasos) {
-                    
-                    if (strcmp(movimientos_actuales, mejor_solucion->movimientos) < 0) {
-                        mejor_solucion->movimientos = strdup(movimientos_actuales);
-                        // Copiar el camino actual a mejor_solucion->camino
-                    }
-                }
-            }
-        }
-    }
-*/   
-
-    // Separar en funciones: lectura, resolución recursiva, escritura y liberación de memoria.
-
-
-
-/*
- 1) Abrir el archivo de entrada usando fopen() y validar entrada.
- 2) Leer el mapa línea por línea usando fgets() y almacenarlo en una estructura adecuada
- 3) Implementar la función recursiva para resolver el problema
-    - En la función recursiva hay que:
-         definir el caso base (si posición actual == S llegué a la salida)
-         verificar la posición actual
-         ir guardando el puntaje que llevo
-         ir guardando las celdas que ya visité ()
-         ir guardando la secuencia de movimientos de la solucuión actual
-         ir explorando las 4 direcciones posibles (A, B, D, I)
-
-4) Comparar la solución encontrada con la mejor solución global y actualizarla si es necesario
-5) Al finalizar la búsqueda, escribir el resultado en el archivo de salida siguiendo el formato especificado
-
-
-*/
